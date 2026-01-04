@@ -146,8 +146,18 @@ Resources:
       DesiredCapacity: "4"
       TargetGroupARNs:
         - !Ref TargetGroup
+Outputs:
 
+  LoadBalancerURL:
+    Description: Public URL of the Application Load Balancer
+    Value: !Sub
+      - "http://${DNS}"
+      - DNS: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub "${EnvironmentName}-LoadBalancerURL"
 
-
-
-        
+  StaticBucketName:
+    Description: S3 bucket for static content
+    Value: !Ref StaticContentBucket
+    Export:
+      Name: !Sub "${EnvironmentName}-StaticBucket"
