@@ -105,13 +105,16 @@ Resources:
           Arn: !GetAtt InstanceProfile.Arn
         SecurityGroupIds:
           - !Ref WebServerSecurityGroup
-        UserData:
-          Fn::Base64: |
+UserData:
+          Fn::Base64: !Sub |
             #!/bin/bash
             apt-get update -y
             apt-get install -y nginx awscli
             systemctl start nginx
-            aws s3 cp s3://BUCKET_NAME/index.html /var/www/html/index.html
+            systemctl enable nginx
+
+            aws s3 cp s3://${StaticContentBucket}/index.html /var/www/html/index.html
+
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
