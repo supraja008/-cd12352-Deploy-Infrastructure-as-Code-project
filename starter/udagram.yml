@@ -5,10 +5,26 @@ Parameters:
 
 Resources:
 
-  StaticContentBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      AccessControl: PublicRead
+StaticContentBucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    PublicAccessBlockConfiguration:
+      BlockPublicAcls: false
+      BlockPublicPolicy: false
+      IgnorePublicAcls: false
+      RestrictPublicBuckets: false
+      
+StaticContentBucketPolicy:
+  Type: AWS::S3::BucketPolicy
+  Properties:
+    Bucket: !Ref StaticContentBucket
+    PolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal: "*"
+          Action: s3:GetObject
+          Resource: !Sub "${StaticContentBucket.Arn}/*"
 
   S3ReadWriteRole:
     Type: AWS::IAM::Role
