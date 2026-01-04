@@ -120,12 +120,11 @@ Resources:
         ImageId: ami-0fc5d935ebf8bc3bc
         InstanceType: t2.micro
         IamInstanceProfile:
-          Arn: !GetAtt InstanceProfile.Arn
+          Name: !Ref InstanceProfile.Arn
         SecurityGroupIds:
           - !Ref WebServerSecurityGroup
         UserData:
           Fn::Base64: !Sub |
-            #!/bin/bash
             apt-get update -y
             apt-get install -y nginx awscli
             systemctl start nginx
