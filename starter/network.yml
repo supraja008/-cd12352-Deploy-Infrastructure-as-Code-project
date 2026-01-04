@@ -1,4 +1,5 @@
 Description: CD12352 - Infrastructure as Code Project - Network
+
 Parameters:
   EnvironmentName:
     Type: String
@@ -38,7 +39,7 @@ Resources:
     Properties:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
-      
+
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -55,7 +56,6 @@ Resources:
       CidrBlock: !Ref PublicSubnet2CIDR
       MapPublicIpOnLaunch: true
 
-  
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -69,7 +69,6 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: !Ref PrivateSubnet2CIDR
-
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -95,7 +94,6 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
-
 
   NatEIP1:
     Type: AWS::EC2::EIP
@@ -156,19 +154,21 @@ Resources:
     Properties:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable2
-      
-Outputs:
-  LoadBalancerURL:
-    Description: Public URL of the Application Load Balancer
-    Value: !Sub
-      - "http://${DNS}"
-      - DNS: !GetAtt ApplicationLoadBalancer.DNSName
-    Export:
-      Name: !Sub "${EnvironmentName}-LoadBalancerURL"
 
-  StaticBucketName:
-    Description: S3 bucket for static content
-    Value: !Ref StaticContentBucket
+Outputs:
+  VPCID:
+    Value: !Ref VPC
     Export:
-      Name: !Sub "${EnvironmentName}-StaticBucket"
+      Name: !Sub "${EnvironmentName}-VPCID"
+
+  PublicSubnets:
+    Value: !Join [",", [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+    Export:
+      Name: !Sub "${EnvironmentName}-PublicSubnets"
+
+  PrivateSubnets:
+    Value: !Join [",", [!Ref PrivateSubnet1, !Ref PrivateSubnet2]]
+    Export:
+      Name: !Sub "${EnvironmentName}-PrivateSubnets"
+
 
