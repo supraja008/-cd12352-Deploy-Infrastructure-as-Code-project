@@ -5,26 +5,26 @@ Parameters:
 
 Resources:
 
-StaticContentBucket:
-  Type: AWS::S3::Bucket
-  Properties:
-    PublicAccessBlockConfiguration:
-      BlockPublicAcls: false
-      BlockPublicPolicy: false
-      IgnorePublicAcls: false
-      RestrictPublicBuckets: false
-      
-StaticContentBucketPolicy:
-  Type: AWS::S3::BucketPolicy
-  Properties:
-    Bucket: !Ref StaticContentBucket
-    PolicyDocument:
-      Version: "2012-10-17"
-      Statement:
-        - Effect: Allow
-          Principal: "*"
-          Action: s3:GetObject
-          Resource: !Sub "${StaticContentBucket.Arn}/*"
+  StaticContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  StaticContentBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticContentBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${StaticContentBucket.Arn}/*"
 
   S3ReadWriteRole:
     Type: AWS::IAM::Role
@@ -63,8 +63,7 @@ StaticContentBucketPolicy:
     Properties:
       GroupDescription: Allow HTTP from internet
       VpcId:
-        Fn::ImportValue:
-          !Sub "${EnvironmentName}-VPCID"
+        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -76,8 +75,7 @@ StaticContentBucketPolicy:
     Properties:
       GroupDescription: Allow HTTP from ALB only
       VpcId:
-        Fn::ImportValue:
-          !Sub "${EnvironmentName}-VPCID"
+        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -92,8 +90,7 @@ StaticContentBucketPolicy:
       Subnets:
         Fn::Split:
           - ","
-          - Fn::ImportValue:
-              !Sub "${EnvironmentName}-PublicSubnets"
+          - Fn::ImportValue: !Sub "${EnvironmentName}-PublicSubnets"
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
@@ -101,8 +98,7 @@ StaticContentBucketPolicy:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       VpcId:
-        Fn::ImportValue:
-          !Sub "${EnvironmentName}-VPCID"
+        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
       Port: 80
       Protocol: HTTP
       TargetType: instance
@@ -129,14 +125,13 @@ StaticContentBucketPolicy:
         SecurityGroupIds:
           - !Ref WebServerSecurityGroup
         UserData:
-          Fn::Base64:
-            !Sub |
-              #!/bin/bash
-              apt-get update -y
-              apt-get install -y nginx awscli
-              systemctl start nginx
-              systemctl enable nginx
-              aws s3 cp s3://${StaticContentBucket}/index.html /var/www/html/index.html
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            apt-get update -y
+            apt-get install -y nginx awscli
+            systemctl start nginx
+            systemctl enable nginx
+            aws s3 cp s3://${StaticContentBucket}/index.html /var/www/html/index.html
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -144,8 +139,7 @@ StaticContentBucketPolicy:
       VPCZoneIdentifier:
         Fn::Split:
           - ","
-          - Fn::ImportValue:
-              !Sub "${EnvironmentName}-PrivateSubnets"
+          - Fn::ImportValue: !Sub "${EnvironmentName}-PrivateSubnets"
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
@@ -155,13 +149,6 @@ StaticContentBucketPolicy:
       TargetGroupARNs:
         - !Ref TargetGroup
 
-Outputs:
-  LoadBalancerURL:
-    Description: Public URL of the Application Load Balancer
-    Value:
-      !Sub
-        - "http://${DNS}"
-        - DNS: !GetAtt ApplicationLoadBalancer.DNSName
 
 
 
