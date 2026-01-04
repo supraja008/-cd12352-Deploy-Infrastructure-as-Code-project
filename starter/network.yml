@@ -121,7 +121,7 @@ Resources:
             RouteTableId: !Ref PublicRouteTable
             SubnetId: !Ref PublicSubnet2
 
-    # --- FIX STARTS HERE: PRIVATE ROUTING ---
+  
     PrivateRouteTable:
         Type: AWS::EC2::RouteTable
         Properties:
