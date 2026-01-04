@@ -2,8 +2,7 @@ Description: CD12352 - Infrastructure as Code Project - Udagram
 Parameters:
   EnvironmentName:
     Type: String
-
-Resources:
+    Resources:
 
   StaticContentBucket:
     Type: AWS::S3::Bucket
