@@ -2,29 +2,48 @@ Description: CD12352 - Infrastructure as Code Project - Udagram
 
 Parameters:
   EnvironmentName:
-    Description: Environment name used as prefix for resources
     Type: String
-
-  InstanceType:
-    Description: EC2 instance type
-    Type: String
-    Default: t3.micro
-
-  KeyName:
-    Description: Name of an existing EC2 KeyPair
-    Type: AWS::EC2::KeyPair::KeyName
-
-  SSHLocation:
-    Description: The IP address range that can be used to SSH
-    Type: String
-    Default: 0.0.0.0/0
-
 
 Resources:
-  WebAppSecurityGroup:
+  StaticContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+
+  S3ReadWriteRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3ReadWritePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "${StaticContentBucket.Arn}"
+                  - !Sub "${StaticContentBucket.Arn}/*"
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref S3ReadWriteRole
+
+  ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP and SSH access
+      GroupDescription: Allow HTTP from internet
       VpcId:
         Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
@@ -32,44 +51,90 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref SSHLocation
 
-  WebAppLaunchTemplate:
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from ALB only
+      VpcId:
+        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: !Split
+        - ","
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PublicSubnets"
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
-    Properties: 
+    Properties:
       LaunchTemplateData:
-      InstanceType: !Ref InstanceType
-        KeyName: !Ref KeyName
+        ImageId: ami-0fc5d935ebf8bc3bc # Ubuntu 22.04 LTS (us-east-1)
+        InstanceType: t2.micro
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
         SecurityGroupIds:
-          - !Ref WebAppSecurityGroup
-        ImageId: ami-0c02fb55956c7d316 # Amazon Linux 2 (us-east-1)
+          - !Ref WebServerSecurityGroup
         UserData:
           Fn::Base64: |
             #!/bin/bash
             apt-get update -y
-            apt-get install nginx -y
+            apt-get install -y nginx awscli
             systemctl start nginx
-            systemctl enable nginx
-            echo "<h1>Udagram is Live!</h1>" > /var/www/html/index.html
-  WebAppInstance:
-    Type: AWS::EC2::Instance
+            aws s3 cp s3://BUCKET_NAME/index.html /var/www/html/index.html
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
+      VPCZoneIdentifier: !Split
+        - ","
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PrivateSubnets"
       LaunchTemplate:
-        LaunchTemplateId: !Ref WebAppLaunchTemplate
-        Version: !GetAtt WebAppLaunchTemplate.LatestVersionNumber
-      SubnetId:
-        Fn::Select:
-          - 0
-          - Fn::Split:
-              - ","
-              - Fn::ImportValue: !Sub "${EnvironmentName}-PublicSubnets"
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: "4"
+      MaxSize: "4"
+      DesiredCapacity: "4"
+      TargetGroupARNs:
+        - !Ref TargetGroup
+
 Outputs:
-  WebAppPublicIP:
-    Description: Public IP of the Udagram web server
-    Value: !GetAtt WebAppInstance.PublicIp
+  LoadBalancerURL:
+    Description: Public URL of the Application Load Balancer
+    Value: !Sub
+      - "http://${DNS}"
+      - DNS: !GetAtt ApplicationLoadBalancer.DNSName
+
 
 
         
