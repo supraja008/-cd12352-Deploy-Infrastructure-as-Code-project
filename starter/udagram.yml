@@ -120,7 +120,7 @@ Resources:
         ImageId: ami-0fc5d935ebf8bc3bc
         InstanceType: t2.micro
         IamInstanceProfile:
-          Name: !Ref InstanceProfile.Arn
+          Name: !Ref InstanceProfile
         SecurityGroupIds:
           - !Ref WebServerSecurityGroup
         UserData:
